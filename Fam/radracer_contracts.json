@@ -1,0 +1,228 @@
+{
+  "_meta": {
+    "game": "Rad Racer",
+    "console": "NES",
+    "publisher": "Square (1987)",
+    "mapper": "MMC1 (Mapper 1)",
+    "_mapper_provenance": "stated in intake with hedge; flagged needs-verification in prior review. Mapper does not affect contract structure (it is _meta context, not an enforced constraint).",
+    "save": "none",
+    "source_intake": "Reverse-Engineering Intake: Rad Racer (NES / Square, 1987)",
+    "schema_basis": "POE 9-contract v1",
+    "schema_version": "radracer-0.1",
+    "fit_summary": "Third axis. RCR kept space + added economy/stats (~70% fit). Top Gun removed space, ran on scripts + skill-checks (~45% fit). Rad Racer FAKES space via rendering: the gameplay contracts are nearly empty (3-lane dodge + timer) while the entire identity lives in a rendering illusion the 9 contracts have no field for. This is the case that forces gameplay and rendering to be SEPARATE layers.",
+    "contracts_clean": ["enemy_system_contract (loosely)"],
+    "contracts_strained": ["input_contract", "interpretation_layer", "player_controller_contract", "validation_layer"],
+    "contracts_inapplicable": [
+      "world_graph_contract  -> no traversable space; degenerate linear stage chain kept only to show the break",
+      "ability_system_contract  -> zero abilities",
+      "boss_contract  -> FIRST game in the corpus with zero bosses; contract is entirely empty",
+      "room_tile_contract  -> no 2D rooms; layout is a 1D sequence of track segments, moved to track_segment_contract"
+    ],
+    "extensions_beyond_spec": [
+      "rendering_illusion_contract  (THE headline -- forced-perspective road engine, sprite-scaling illusion, parallax. The game's whole identity. Bridges directly to the pixel/MCP engine.)",
+      "track_segment_contract  (1D pre-authored track pieces; correct replacement for room_tile in a forward-scroll game)",
+      "resource_contract  (time -- depleting; THIRD confirmation that resource economy is a missing primitive)",
+      "difficulty_scaling_contract  (speed is a single scalar that simultaneously drives rendering, difficulty, and time pressure)"
+    ],
+    "provenance_tiers": {
+      "canonical_known": [
+        "pseudo-3D forced-perspective road", "lane-based dodging",
+        "speed as primary difficulty scalar", "linear stage progression (no branching)",
+        "time-pressure loop (no economy)", "no bosses", "no lap system",
+        "Famicom 3D System stereoscopic support (Japan)", "sprite-scaling for oncoming cars"
+      ],
+      "estimated": [
+        "player_controller_contract.* numeric values",
+        "enemy_system_contract obstacle penalties",
+        "resource_contract time values",
+        "rendering_illusion_contract row-compression curve"
+      ],
+      "needs_rom_extraction": [
+        "exact stage count and per-stage time budgets",
+        "exact lane-shift speed / top speed / accel curve",
+        "exact obstacle spawn density per stage",
+        "exact perspective row-spacing math",
+        "frame counts (player car states, AI car scaling steps)"
+      ]
+    },
+    "open_measure_flags": [
+      "stage count modeled as 4 + final stretch; confirm",
+      "lateral movement modeled as continuous lateral position (not strict 3-lane); intake says 'discrete lane steps' AND 'pseudo-subpixel' -- reconcile against ROM",
+      "whether AI cars and obstacles share one timing-disruptor system or two separate spawners is unconfirmed"
+    ]
+  },
+
+  "input_contract": {
+    "theme": "high-speed forward routing under time pressure",
+    "setting": "linear highway (desert / coast / city / night stages)",
+    "protagonist_archetype": "racer",
+    "tone": "arcade-kinetic",
+    "core_ability_style": "lane positioning + obstacle anticipation",
+    "reference_inspirations": ["80s arcade pseudo-3D racers"],
+    "difficulty": "hard",
+    "session_length": "short",
+    "_strain": "core_ability_style is just 'don't hit things while going fast' -- the field expects movement/combat verbs and there essentially are none"
+  },
+
+  "interpretation_layer": {
+    "movement_model": "lane-based",
+    "_movement_model_strain": "STRAIN: enum was (grounded | aerial | hybrid). Lane-based / rail movement is neither. The player moves laterally within a forward-locked frame.",
+    "combat_model": "collision-avoidance",
+    "_combat_model_strain": "STRAIN: enum was (projectile | melee | hybrid). There is NO attack -- the entire combat model is dodging. The contract has no value for 'no offense'.",
+    "world_structure": "linear-forward-scroll",
+    "_world_structure_strain": "STRAIN: same spatial-enum failure as Top Gun, different shape. Top Gun was scripted events; Rad Racer is continuous scroll.",
+    "progression_style": "stage-escalation",
+    "_progression_style_strain": "STRAIN: not ability/key/hybrid. Progression is survive-the-stage, difficulty rises by speed + density.",
+    "risk_profile": "time-attrition"
+  },
+
+  "world_graph_contract": {
+    "_INAPPLICABLE": "No traversable space. Degenerate linear stage chain kept ONLY to show the break -- these 'nodes' are sequential stages on a forward-scroll, not navigable locations. Real layout is track_segment_contract; real structure is just an ordered stage list.",
+    "nodes": [
+      { "id": "stage_1", "type": "stage", "connections": ["stage_2"], "gates": ["checkpoint_time"], "rewards": ["time_extension"] },
+      { "id": "stage_2", "type": "stage", "connections": ["stage_3"], "gates": ["checkpoint_time"], "rewards": ["time_extension"] },
+      { "id": "stage_3", "type": "stage", "connections": ["stage_4"], "gates": ["checkpoint_time"], "rewards": ["time_extension"] },
+      { "id": "stage_4", "type": "stage", "connections": ["final_stretch"], "gates": ["checkpoint_time"], "rewards": ["time_extension"] },
+      { "id": "final_stretch", "type": "end", "connections": [], "gates": ["checkpoint_time"], "rewards": ["win"] }
+    ],
+    "edges": [
+      { "from": "stage_1", "to": "stage_2", "requirement": "reach_checkpoint_before_timeout" },
+      { "from": "stage_2", "to": "stage_3", "requirement": "reach_checkpoint_before_timeout" },
+      { "from": "stage_3", "to": "stage_4", "requirement": "reach_checkpoint_before_timeout" },
+      { "from": "stage_4", "to": "final_stretch", "requirement": "reach_checkpoint_before_timeout" },
+      { "from": "final_stretch", "to": "win", "requirement": "reach_finish_before_timeout" }
+    ]
+  },
+
+  "ability_system_contract": {
+    "_INAPPLICABLE": "Zero abilities. The player never gains a capability. Empty by design.",
+    "abilities": []
+  },
+
+  "player_controller_contract": {
+    "_strain": "THIRD different break of this contract. RCR needed stat-scaling; Top Gun needed pitch/throttle; Rad Racer needs a lane/rail model with NO jump and NO HP. The platformer-shaped movement block is wrong again. Pattern is now conclusive: this contract is a platformer dialect, not a universal one.",
+    "movement_DEPRECATED_FIELDS": {
+      "jump_force": null,
+      "gravity": null,
+      "air_control": null,
+      "_note": "vertical motion in Rad Racer is a rendering illusion (bridge segments + scaling), not a physics field"
+    },
+    "rail_model": {
+      "lateral_model": "continuous_position",
+      "lane_shift_speed": 6.0,
+      "lateral_bounds": [-1.0, 1.0],
+      "top_speed": 800,
+      "accel_rate": 25,
+      "decel_rate": 40
+    },
+    "collision_response": {
+      "obstacle_hit": "spin_out",
+      "spin_recovery_delay": 1.2,
+      "speed_loss_on_crash": 0.7,
+      "post_recovery_iframes": 0.5,
+      "_note": "NO health pool. Cost of a crash is time + speed, not HP. Survivability == remaining time margin."
+    },
+    "health": null,
+    "_health_note": "intentionally null -- this game has no damage model, only time/speed penalties"
+  },
+
+  "enemy_system_contract": {
+    "enemies": [
+      { "id": "ai_car_sedan",  "behavior": "lane_hold",    "health": null, "movement_pattern": "forward_slower", "spawn_nodes": ["stage_1", "stage_2", "stage_3", "stage_4"], "role": "timing_disruptor" },
+      { "id": "ai_car_sport",  "behavior": "lane_swerve",  "health": null, "movement_pattern": "forward_variable", "spawn_nodes": ["stage_2", "stage_3", "stage_4"], "role": "timing_disruptor" },
+      { "id": "obstacle_oil",  "behavior": "static",       "health": null, "movement_pattern": "none", "spawn_nodes": ["stage_2", "stage_3"], "role": "control_loss" },
+      { "id": "obstacle_cone", "behavior": "static",       "health": null, "movement_pattern": "none", "spawn_nodes": ["stage_1", "stage_2"], "role": "minor_obstruction" },
+      { "id": "obstacle_barrier", "behavior": "static",    "health": null, "movement_pattern": "none", "spawn_nodes": ["stage_3", "stage_4"], "role": "hard_collision" }
+    ],
+    "_note": "Loosest clean fit, but STRAIN: enemies have no health -- they are non-destroyable timing disruptors. 'health: null' across the board. The contract assumes things you defeat; nothing here can be defeated."
+  },
+
+  "boss_contract": {
+    "_INAPPLICABLE": "FIRST corpus entry with zero bosses. Rad Racer has no boss concept at all. This proves even a 'core' contract is genre-optional.",
+    "bosses": []
+  },
+
+  "room_tile_contract": {
+    "_INAPPLICABLE": "No 2D room layout. Layout is a 1D ordered sequence of track segments. Moved to track_segment_contract.",
+    "rooms": []
+  },
+
+  "track_segment_contract": {
+    "_extension": "EXTENSION. Correct replacement for room_tile in a forward-scroll game. Pre-authored 1D track pieces streamed under the player.",
+    "segment_types": ["straight", "curve_left", "curve_right", "bridge", "mountain_pass"],
+    "authoring": "hand_placed_per_stage",
+    "procedural": false,
+    "example_stage_1": [
+      { "segment": "straight",    "length": 400, "obstacle_density": "low" },
+      { "segment": "curve_right", "length": 250, "obstacle_density": "low" },
+      { "segment": "straight",    "length": 300, "obstacle_density": "medium" },
+      { "segment": "bridge",      "length": 200, "obstacle_density": "none" },
+      { "segment": "curve_left",  "length": 250, "obstacle_density": "medium" }
+    ],
+    "_note": "lengths/densities tier=estimated"
+  },
+
+  "rendering_illusion_contract": {
+    "_extension": "EXTENSION -- and the single most important finding of the whole corpus. Rad Racer's ENTIRE identity is a rendering illusion, and the 9 contracts have NO rendering layer. This contract belongs to / overlaps the pixel-MCP engine. The intake's own verdict: strip the perspective system and it stops being Rad Racer even with every sprite intact.",
+    "forced_perspective_road": {
+      "method": "horizontal_tile_strips",
+      "row_compression": "spacing_decreases_toward_horizon",
+      "center_drift": "lane_narrowing_toward_vanishing_point",
+      "produces": ["depth_illusion", "speed_illusion", "lane_narrowing"],
+      "_critical": "the road is NOT geometry -- it is a per-row projection trick"
+    },
+    "sprite_scaling_illusion": {
+      "applies_to": ["ai_cars", "roadside_objects"],
+      "method": "swap_sprite_size_steps_by_distance",
+      "_note": "fakes Z-depth approach without real 3D"
+    },
+    "parallax_layering": {
+      "layers": ["road_center", "roadside_objects", "horizon_skyline"],
+      "differential_scroll": true
+    },
+    "speed_coupling": "rendering rate is driven by player speed -- the rendering and the difficulty share one variable (see difficulty_scaling_contract)",
+    "_engine_link": "this is where Rad Racer feeds the pixel/MCP rendering core, NOT the gameplay generator. Gameplay-side, the game is trivial; rendering-side, it is the whole product."
+  },
+
+  "resource_contract": {
+    "_extension": "EXTENSION. Time as a depleting resource. THIRD confirmation of the resource-layer gap (RCR money = accumulate; Top Gun fuel = deplete; Rad Racer time = deplete). Resource economy is a primitive, not a per-game patch.",
+    "resources": {
+      "time": {
+        "model": "depleting",
+        "start_value": 90,
+        "depletion_rate_per_sec": 1.0,
+        "restored_by": "checkpoint_reach",
+        "restore_amount": 30,
+        "fail_on_empty": true
+      }
+    }
+  },
+
+  "difficulty_scaling_contract": {
+    "_extension": "EXTENSION. Rad Racer's defining design quirk: ONE scalar (speed) simultaneously drives rendering rate, reaction-window compression, sprite-flicker risk, and time pressure. The 9 contracts have no place to declare a unified scalar.",
+    "primary_scalar": "speed",
+    "couples": {
+      "render_rate": "increases_with_speed",
+      "reaction_window": "decreases_with_speed",
+      "sprite_flicker_risk": "increases_with_speed",
+      "lane_error_cost": "increases_with_speed"
+    },
+    "per_stage_modifiers": {
+      "traffic_density": "increases_per_stage",
+      "curve_frequency": "increases_per_stage",
+      "time_budget": "decreases_per_stage"
+    }
+  },
+
+  "validation_layer": {
+    "valid": true,
+    "errors": [],
+    "checks": [
+      "stage_completable: each stage's track length is clearable within its time budget at achievable speeds",
+      "reaction_feasible: at max stage speed, the reaction window for the densest obstacle cluster is non-empty (i.e. physically dodgeable)",
+      "sprite_budget: peak simultaneous on-screen objects (cars + markers + scenery) respects the 8-per-scanline limit or schedules flicker (overlaps rendering/pixel MCP)",
+      "perspective_valid: row-compression curve converges to a single vanishing point (rendering correctness)"
+    ],
+    "_strain": "Every spatial check (reachability, dead-ends, gate-solvability) is inapplicable AGAIN. Two of the four meaningful checks here (sprite_budget, perspective_valid) are RENDERING checks -- they belong to the pixel MCP, not the gameplay validator. This is the first game where the validator must span both engines."
+  }
+}

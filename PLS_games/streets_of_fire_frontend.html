@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STREETS OF FIRE — Select & World Tour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --asphalt:#16131a;       /* warm night-court charcoal */
+    --asphalt2:#1f1a26;
+    --concrete:#272030;      /* panel surface */
+    --concrete2:#322a3d;
+    --chalk:#f1ece0;         /* court-line cream / text */
+    --chalk-dim:#8d8597;
+    --ember:#ff5a1f;         /* fire gradient low */
+    --fire:#ff1f47;          /* fire gradient high */
+    --gold:#ffc233;          /* championship */
+    --ice:#2ce0d2;           /* cold counter (heat-vs-cold duality) */
+    --line:rgba(241,236,224,.16);
+    --disp:'Anton','Arial Narrow',sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 500px at 50% -10%, #2a1d2e 0%, transparent 60%),
+      var(--asphalt);
+    color:var(--chalk);
+    font-family:var(--body);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  /* CRT scanline arcade overlay */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:60;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0 1px,transparent 1px 3px);
+    mix-blend-mode:overlay;opacity:.5;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 18px 60px}
+
+  /* ---------- MARQUEE HEADER ---------- */
+  header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--asphalt) 70%,transparent);
+    padding:18px 0 14px;border-bottom:1px solid var(--line)}
+  .head-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;max-width:1180px;margin:0 auto;padding:0 18px}
+  .brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  .logo{font-family:var(--disp);font-size:clamp(30px,6vw,58px);line-height:.86;letter-spacing:.5px;
+    background:linear-gradient(95deg,var(--gold),var(--ember) 45%,var(--fire));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 30px rgba(255,90,31,.25);transform:skewX(-6deg)}
+  .logo .small{display:block;font-size:.26em;letter-spacing:.5em;color:var(--chalk-dim);
+    -webkit-text-fill-color:var(--chalk-dim);transform:skewX(6deg);margin-top:6px}
+  nav{display:flex;gap:6px;background:var(--concrete);padding:5px;border-radius:2px;border:1px solid var(--line)}
+  nav button{font-family:var(--disp);letter-spacing:.12em;font-size:15px;color:var(--chalk-dim);
+    background:transparent;border:0;padding:11px 18px;cursor:pointer;transition:.15s;transform:skewX(-6deg)}
+  nav button span{display:inline-block;transform:skewX(6deg)}
+  nav button.active{color:var(--asphalt);background:linear-gradient(95deg,var(--ember),var(--fire))}
+  nav button:not(.active):hover{color:var(--chalk)}
+
+  .screen{display:none;animation:fade .35s ease}
+  .screen.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.34em;color:var(--gold);text-transform:uppercase;margin:26px 0 4px}
+  .scr-title{font-family:var(--disp);font-size:clamp(26px,4.5vw,42px);letter-spacing:.04em;margin:0 0 18px;transform:skewX(-5deg)}
+
+  /* ---------- SELECT SCREEN ---------- */
+  .select-grid{display:grid;grid-template-columns:1.25fr .9fr;gap:22px}
+  @media(max-width:860px){.select-grid{grid-template-columns:1fr}}
+
+  /* court backdrop for roster */
+  .court{position:relative;background:
+      linear-gradient(180deg,var(--asphalt2),#120f17);
+    border:1px solid var(--line);border-radius:3px;padding:20px;overflow:hidden}
+  .court::before{content:"";position:absolute;inset:14px;border:2px solid var(--line);border-radius:2px;pointer-events:none}
+  .court::after{content:"";position:absolute;left:50%;top:14px;bottom:14px;width:2px;background:var(--line);transform:translateX(-50%);pointer-events:none}
+  .center-circle{position:absolute;left:50%;top:50%;width:150px;height:150px;border:2px solid var(--line);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+
+  .roster{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:520px){.roster{grid-template-columns:repeat(2,1fr)}}
+  .cell{position:relative;aspect-ratio:3/4;border:1px solid var(--line);border-radius:2px;cursor:pointer;
+    background:var(--concrete);overflow:hidden;transition:transform .12s, box-shadow .12s;display:flex;flex-direction:column;justify-content:flex-end}
+  .cell:hover,.cell.focus{transform:translateY(-3px)}
+  .cell.focus{box-shadow:0 0 0 2px var(--gold),0 10px 30px rgba(255,90,31,.3)}
+  .cell .jersey{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-size:46px;color:rgba(0,0,0,.28)}
+  .cell .num{position:absolute;top:8px;left:10px;font-family:var(--mono);font-size:11px;color:var(--chalk-dim)}
+  .cell .label{position:relative;z-index:2;padding:8px 9px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.72));}
+  .cell .nm{font-family:var(--disp);font-size:16px;letter-spacing:.04em;line-height:1}
+  .cell .ar{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--chalk-dim);text-transform:uppercase}
+  .cell.picked{box-shadow:0 0 0 2px var(--ice)}
+  .cell.picked::after{content:"✓ ON SQUAD";position:absolute;top:8px;right:8px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--ice)}
+  .ember{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--ember);pointer-events:none;z-index:5}
+
+  /* squad tray + stance */
+  .tray{margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .slots{display:flex;gap:8px}
+  .slot{width:54px;height:54px;border:1px dashed var(--line);border-radius:2px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--disp);font-size:22px;color:var(--chalk-dim);background:var(--asphalt2);cursor:pointer;transition:.15s}
+  .slot.full{border-style:solid;color:var(--asphalt);cursor:pointer}
+  .slot.full:hover{filter:brightness(1.1)}
+  .tray-label{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--chalk-dim);text-transform:uppercase}
+
+  .stances{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .stance{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--chalk-dim);
+    background:var(--concrete);border:1px solid var(--line);padding:9px 13px;border-radius:2px;cursor:pointer;transition:.15s}
+  .stance.on{color:var(--asphalt);background:var(--gold);border-color:var(--gold);font-weight:700}
+  .stance:not(.on):hover{color:var(--chalk)}
+
+  .ready{margin-top:16px;width:100%;font-family:var(--disp);font-size:24px;letter-spacing:.1em;color:var(--asphalt);
+    background:linear-gradient(95deg,var(--ember),var(--fire));border:0;padding:16px;border-radius:2px;cursor:pointer;
+    transform:skewX(-6deg);transition:.15s;opacity:.45;pointer-events:none}
+  .ready span{display:inline-block;transform:skewX(6deg)}
+  .ready.go{opacity:1;pointer-events:auto;box-shadow:0 0 34px rgba(255,31,71,.45);animation:pulse 1.4s infinite}
+  @keyframes pulse{50%{box-shadow:0 0 14px rgba(255,31,71,.25)}}
+
+  /* detail panel */
+  .detail{background:var(--concrete);border:1px solid var(--line);border-radius:3px;padding:20px;position:relative;overflow:hidden}
+  .detail .ring{position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;opacity:.16;filter:blur(2px)}
+  .d-name{font-family:var(--disp);font-size:clamp(30px,5vw,46px);line-height:.9;letter-spacing:.02em;transform:skewX(-5deg)}
+  .d-arch{font-family:var(--mono);font-size:12px;letter-spacing:.24em;color:var(--gold);text-transform:uppercase;margin:6px 0 14px}
+  .radar-wrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .bars{flex:1;min-width:160px;display:grid;gap:7px}
+  .bar{display:grid;grid-template-columns:54px 1fr 30px;gap:8px;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--chalk-dim)}
+  .bar .track{height:7px;background:var(--asphalt);border-radius:4px;overflow:hidden}
+  .bar .fill{height:100%;background:linear-gradient(90deg,var(--ember),var(--fire));border-radius:4px;transition:width .4s}
+  .bar .v{text-align:right;color:var(--chalk)}
+  .sig{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  .sig .k{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--chalk-dim);text-transform:uppercase}
+  .sig .sig-name{font-family:var(--disp);font-size:22px;letter-spacing:.04em;color:var(--gold);margin:2px 0 6px}
+  .sig p{margin:0;font-size:13.5px;line-height:1.5;color:var(--chalk)}
+  .meterchips{display:flex;gap:8px;margin-top:14px}
+  .chip{font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:6px 10px;border-radius:2px;border:1px solid var(--line)}
+  .chip.heat{color:var(--fire)} .chip.style{color:var(--ice)}
+
+  /* ---------- VS SLAM ---------- */
+  .vs-overlay{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(8,6,11,.9)}
+  .vs-overlay.on{display:flex}
+  .vs-stage{position:relative;width:100%;max-width:1000px;height:60vh;display:flex;overflow:hidden}
+  .vs-side{flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:32px}
+  .vs-left{align-items:flex-start;animation:slamL .5s cubic-bezier(.2,1.2,.3,1)}
+  .vs-right{align-items:flex-end;text-align:right;animation:slamR .5s cubic-bezier(.2,1.2,.3,1)}
+  @keyframes slamL{from{transform:translateX(-120%)}to{transform:none}}
+  @keyframes slamR{from{transform:translateX(120%)}to{transform:none}}
+  .vs-team{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--gold)}
+  .vs-player{font-family:var(--disp);font-size:clamp(22px,4vw,38px);line-height:.92;letter-spacing:.02em}
+  .vs-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) skewX(-8deg);z-index:3;
+    font-family:var(--disp);font-size:clamp(60px,16vw,150px);color:var(--fire);text-shadow:0 0 40px rgba(255,31,71,.6);animation:vspop .5s .2s both}
+  @keyframes vspop{from{opacity:0;transform:translate(-50%,-50%) skewX(-8deg) scale(2.4)}to{opacity:1;transform:translate(-50%,-50%) skewX(-8deg) scale(1)}}
+  .bring{position:absolute;bottom:6vh;left:50%;transform:translateX(-50%);font-family:var(--disp);font-size:22px;letter-spacing:.18em;
+    color:var(--asphalt);background:var(--gold);border:0;padding:14px 30px;cursor:pointer;border-radius:2px;animation:pulse 1.2s infinite}
+
+  /* ---------- WORLD TOUR MAP ---------- */
+  .map-grid{display:grid;grid-template-columns:1.6fr .8fr;gap:22px}
+  @media(max-width:860px){.map-grid{grid-template-columns:1fr}}
+  .mapframe{background:radial-gradient(900px 420px at 50% 40%,#1b2230,#0e0b13);border:1px solid var(--line);border-radius:3px;overflow:hidden;position:relative}
+  .mapframe svg{display:block;width:100%;height:auto}
+  .continent{fill:rgba(241,236,224,.05);stroke:var(--line);stroke-width:1.2}
+  .route{fill:none;stroke:var(--ember);stroke-width:1.6;opacity:.5;stroke-dasharray:5 7;animation:flow 1.4s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-24}}
+  .node{cursor:pointer}
+  .node .halo{fill:none;stroke-width:2}
+  .node .dot{stroke:var(--asphalt);stroke-width:1.5}
+  .node text{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;fill:var(--chalk);text-anchor:middle;opacity:0;transition:.15s;text-transform:uppercase}
+  .node:hover text,.node.sel text{opacity:1}
+  .node:hover .dot,.node.sel .dot{r:9}
+  .node.final .dot{fill:var(--gold)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;padding:12px 16px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--chalk-dim);text-transform:uppercase;border-top:1px solid var(--line)}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+  .city-card{background:var(--concrete);border:1px solid var(--line);border-radius:3px;padding:20px;position:relative;min-height:240px}
+  .city-card .tier{font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase}
+  .city-name{font-family:var(--disp);font-size:clamp(26px,4vw,38px);line-height:.92;letter-spacing:.02em;margin:4px 0 2px;transform:skewX(-5deg)}
+  .city-loc{font-family:var(--mono);font-size:12px;color:var(--chalk-dim);letter-spacing:.12em}
+  .crest-big{margin:16px 0}
+  .court-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+    background:var(--asphalt2);border:1px solid var(--line);padding:8px 12px;border-radius:2px;margin-top:8px;text-transform:uppercase;color:var(--chalk)}
+  .court-tweak{font-size:12.5px;line-height:1.5;color:var(--chalk-dim);margin-top:12px}
+  .play-here{margin-top:16px;width:100%;font-family:var(--disp);font-size:18px;letter-spacing:.1em;color:var(--asphalt);
+    background:linear-gradient(95deg,var(--ember),var(--fire));border:0;padding:13px;border-radius:2px;cursor:pointer;transform:skewX(-6deg)}
+  .play-here span{display:inline-block;transform:skewX(6deg)}
+  .empty-hint{color:var(--chalk-dim);font-size:13px;line-height:1.6;font-family:var(--mono)}
+
+  footer{font-family:var(--mono);font-size:11px;color:var(--chalk-dim);letter-spacing:.1em;text-align:center;margin-top:30px}
+
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="head-row">
+    <div class="brand">
+      <div class="logo">STREETS<span class="small">BIG3 · WORLD TOUR · 3v3</span></div>
+      <div class="logo" style="margin-left:-6px">OF FIRE</div>
+    </div>
+    <nav>
+      <button id="tab-select" class="active" onclick="showScreen('select')"><span>SELECT</span></button>
+      <button id="tab-map" onclick="showScreen('map')"><span>WORLD TOUR</span></button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===================== SELECT SCREEN ===================== -->
+  <section id="select" class="screen on">
+    <div class="eyebrow">Choose your three · check-ball · fights on</div>
+    <h2 class="scr-title">BUILD YOUR BIG3</h2>
+    <div class="select-grid">
+      <div>
+        <div class="court">
+          <div class="center-circle"></div>
+          <div class="roster" id="roster"></div>
+        </div>
+        <div class="tray">
+          <span class="tray-label">Squad</span>
+          <div class="slots" id="slots"></div>
+          <span class="tray-label" id="squadcount">0 / 3</span>
+        </div>
+        <div class="stances" id="stances"></div>
+        <button class="ready" id="ready" onclick="doVS()"><span>READY — BRING THE FIRE</span></button>
+      </div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </section>
+
+  <!-- ===================== WORLD TOUR MAP ===================== -->
+  <section id="map" class="screen">
+    <div class="eyebrow">Run the ladder · regional → continental → world final</div>
+    <h2 class="scr-title">WORLD TOUR</h2>
+    <div class="map-grid">
+      <div class="mapframe">
+        <svg viewBox="0 0 1000 500" id="worldsvg"></svg>
+        <div class="legend">
+          <span><i style="background:var(--ice)"></i>Regional</span>
+          <span><i style="background:var(--ember)"></i>Continental</span>
+          <span><i style="background:var(--gold)"></i>World Final</span>
+          <span style="margin-left:auto">Tap a city crest</span>
+        </div>
+      </div>
+      <div class="city-card" id="citycard">
+        <div class="empty-hint">// SELECT A NODE<br><br>Each city seeds a home squad and a court archetype. The court bends the rules — rooftop wind tilts the game toward chaos, a cage tightens contact and fills Tension faster. Win to climb the ladder toward THE GLOBE.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>STREETS OF FIRE — front-end prototype · greyboxed logic, render-juice on top · POE Sports/Court skeleton</footer>
+</div>
+
+<!-- VS SLAM -->
+<div class="vs-overlay" id="vs">
+  <div class="vs-stage">
+    <div class="vs-side vs-left" id="vsleft"></div>
+    <div class="vs-badge">VS</div>
+    <div class="vs-side vs-right" id="vsright"></div>
+    <button class="bring" onclick="closeVS()">BRING IT →</button>
+  </div>
+</div>
+
+<script>
+/* ---------------- DATA: archetype roster (original, license = skin layer) ---------------- */
+const ROSTER = [
+  {id:'jet', nm:'JET', arch:'The Aerial', jersey:'#ff5a1f', stats:{AIR:95,RNG:55,HDL:70,DEF:60,MTR:65},
+    sig:'POSTERIZER', lever:'Fastest Gamebreaker fill — every dunk-on dumps style into the meter.'},
+  {id:'deadeye', nm:'DEADEYE', arch:'The Marksman', jersey:'#2ce0d2', stats:{AIR:50,RNG:95,HDL:60,DEF:55,MTR:60},
+    sig:'DEEP FOUR', lever:'Fastest Heat ignition and the deepest range on the 4-point circles.'},
+  {id:'professor', nm:'PROFESSOR', arch:'The Handle', jersey:'#ffc233', stats:{AIR:60,RNG:65,HDL:95,DEF:50,MTR:80},
+    sig:'ANKLE-BREAK CHAIN', lever:'Style-per-trick multiplier — disrespect compounds on every crossover.'},
+  {id:'brick', nm:'BRICK', arch:'The Wall', jersey:'#8d8597', stats:{AIR:70,RNG:40,HDL:35,DEF:95,MTR:45},
+    sig:'GAMEBREAKER BLOCK', lever:'Best contest in the league — can spend style to deny a Gamebreaker.'},
+  {id:'dime', nm:'DIME', arch:'The Engine', jersey:'#ff1f47', stats:{AIR:55,RNG:70,HDL:80,DEF:60,MTR:95},
+    sig:'DIME', lever:'Assists pour into teammates’ meters — the tempo-setter who feeds the unit.'},
+  {id:'hammer', nm:'HAMMER', arch:'The Bruiser', jersey:'#b5462f', stats:{AIR:65,RNG:45,HDL:40,DEF:85,MTR:50},
+    sig:'ENFORCER', lever:'Wins flashpoints and raises the team’s Tension threshold. Don’t test him.'},
+];
+const STAT_KEYS=['AIR','RNG','HDL','DEF','MTR'];
+const STANCES=['Run-and-Gun','Lockdown','Showtime'];
+
+/* ---------------- DATA: world tour teams ---------------- */
+const CITIES=[
+  {id:'ny', team:'BORO KINGS', city:'New York', cc:'USA', tier:'regional', court:'Cage',
+    tweak:'Tight chain-link bounds. More contact → Tension fills faster, fights come early.', col:'#2ce0d2', x:232,y:178},
+  {id:'la', team:'WEST COAST HEAT', city:'Los Angeles', cc:'USA', tier:'regional', court:'Beachfront',
+    tweak:'Soft sand surface dampens dunk physics — a shooter’s court. Showtime crowd.', col:'#2ce0d2', x:150,y:202},
+  {id:'chi', team:'WIND CITY LOCK', city:'Chicago', cc:'USA', tier:'regional', court:'Arena',
+    tweak:'Neutral sim baseline. No tricks from the venue — pure execution decides it.', col:'#2ce0d2', x:206,y:166},
+  {id:'atl', team:'TRAP CITY', city:'Atlanta', cc:'USA', tier:'regional', court:'Rooftop',
+    tweak:'Wind gusts nudge the slider toward chaos (+arcade). Long fours get spicy.', col:'#2ce0d2', x:222,y:206},
+  {id:'mex', team:'ALTITUDE', city:'Mexico City', cc:'MEX', tier:'regional', court:'Rooftop',
+    tweak:'Thin air, fast breaks. Stamina drains quicker — manage the bench.', col:'#2ce0d2', x:188,y:244},
+  {id:'sao', team:'FAVELA FLOW', city:'São Paulo', cc:'BRA', tier:'continental', court:'Beachfront',
+    tweak:'Flowing handles court. Style meter rate runs hot — bring a trickster.', col:'#ff5a1f', x:312,y:352},
+  {id:'lon', team:'THAMES THRONE', city:'London', cc:'GBR', tier:'continental', court:'Cage',
+    tweak:'Old-school cage. Physical, deliberate — Lockdown stance thrives here.', col:'#ff5a1f', x:478,y:150},
+  {id:'bel', team:'BALKAN BRICKS', city:'Belgrade', cc:'SRB', tier:'continental', court:'Cage',
+    tweak:'Hard-nosed half-court. Bruisers feast; flashpoints frequent.', col:'#ff5a1f', x:520,y:162},
+  {id:'lag', team:'LAGOS LIONS', city:'Lagos', cc:'NGA', tier:'continental', court:'Rooftop',
+    tweak:'High-energy rooftop. Crowd heat ramps the music and the mayhem.', col:'#ff5a1f', x:492,y:262},
+  {id:'tok', team:'NEON DYNASTY', city:'Tokyo', cc:'JPN', tier:'continental', court:'Arena',
+    tweak:'Precision arena, sim-leaning. Green windows tighten — shooters only.', col:'#ff5a1f', x:822,y:184},
+  {id:'man', team:'MANILA STORM', city:'Manila', cc:'PHL', tier:'continental', court:'Arena',
+    tweak:'Loudest crowd on tour. Heat ignites a beat earlier — ride the streak.', col:'#ff5a1f', x:802,y:258},
+  {id:'globe', team:'THE GLOBE', city:'World Final', cc:'—', tier:'final', court:'Arena',
+    tweak:'Neutral apex. Three phases: normal → on-fire-buffed → gamebreaker-loaded. Win the belt.', col:'#ffc233', x:500,y:250},
+];
+/* representative ladder routes (regional → continental → final) */
+const ROUTES=[['ny','lon'],['lon','globe'],['la','tok'],['tok','globe'],['atl','lag'],['lag','globe'],['sao','globe'],['bel','globe'],['man','globe']];
+
+/* ---------------- STATE ---------------- */
+let squad=[]; let stance='Run-and-Gun'; let focused=ROSTER[0];
+
+/* ---------------- SELECT: render roster ---------------- */
+function renderRoster(){
+  const r=document.getElementById('roster'); r.innerHTML='';
+  ROSTER.forEach((p,i)=>{
+    const picked=squad.includes(p.id);
+    const el=document.createElement('div');
+    el.className='cell'+(focused.id===p.id?' focus':'')+(picked?' picked':'');
+    el.style.background=`linear-gradient(180deg,${p.jersey}33,var(--concrete))`;
+    el.innerHTML=`<span class="num">0${i+1}</span>
+      <div class="jersey">${p.nm[0]}</div>
+      <div class="label"><div class="nm">${p.nm}</div><div class="ar">${p.arch}</div></div>`;
+    el.onmouseenter=()=>{focused=p;renderDetail();highlight();};
+    el.onclick=e=>{focused=p;togglePick(p.id);emberBurst(e,p.jersey);renderRoster();renderDetail();renderSlots();};
+    r.appendChild(el);
+  });
+}
+function highlight(){document.querySelectorAll('.cell').forEach((c,i)=>c.classList.toggle('focus',ROSTER[i].id===focused.id));}
+function togglePick(id){
+  if(squad.includes(id)) squad=squad.filter(x=>x!==id);
+  else if(squad.length<3) squad.push(id);
+}
+function renderSlots(){
+  const s=document.getElementById('slots'); s.innerHTML='';
+  for(let i=0;i<3;i++){
+    const pid=squad[i]; const p=ROSTER.find(x=>x.id===pid);
+    const el=document.createElement('div');
+    el.className='slot'+(p?' full':'');
+    if(p){el.style.background=`linear-gradient(180deg,${p.jersey},${p.jersey}aa)`;el.textContent=p.nm[0];
+      el.title='Remove '+p.nm; el.onclick=()=>{squad=squad.filter(x=>x!==pid);renderRoster();renderSlots();};}
+    else el.textContent='+';
+    s.appendChild(el);
+  }
+  document.getElementById('squadcount').textContent=squad.length+' / 3';
+  const rdy=document.getElementById('ready'); rdy.classList.toggle('go',squad.length===3);
+}
+function renderStances(){
+  const s=document.getElementById('stances'); s.innerHTML='';
+  STANCES.forEach(st=>{
+    const b=document.createElement('button');
+    b.className='stance'+(stance===st?' on':''); b.textContent=st;
+    b.onclick=()=>{stance=st;renderStances();}; s.appendChild(b);
+  });
+}
+function renderDetail(){
+  const p=focused; const d=document.getElementById('detail');
+  d.innerHTML=`
+    <div class="ring" style="background:${p.jersey}"></div>
+    <div class="d-name">${p.nm}</div>
+    <div class="d-arch">${p.arch}</div>
+    <div class="radar-wrap">${radarSVG(p)}
+      <div class="bars">${STAT_KEYS.map(k=>`
+        <div class="bar"><span>${k}</span>
+          <div class="track"><div class="fill" style="width:${p.stats[k]}%"></div></div>
+          <span class="v">${p.stats[k]}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="sig">
+      <div class="k">Signature special</div>
+      <div class="sig-name">${p.sig}</div>
+      <p>${p.lever}</p>
+      <div class="meterchips">
+        <span class="chip heat">HEAT · streak</span>
+        <span class="chip style">STYLE · disrespect</span>
+      </div>
+    </div>`;
+}
+function radarSVG(p){
+  const cx=70,cy=70,R=54,N=5;
+  const pt=(val,i)=>{const a=-Math.PI/2+i*2*Math.PI/N;const r=R*val/100;return[cx+r*Math.cos(a),cy+r*Math.sin(a)];};
+  const grid=[100,66,33].map(g=>{
+    const pts=STAT_KEYS.map((k,i)=>pt(g,i).join(',')).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="rgba(241,236,224,.12)"/>`;}).join('');
+  const shape=STAT_KEYS.map((k,i)=>pt(p.stats[k],i).join(',')).join(' ');
+  return `<svg width="140" height="140" viewBox="0 0 140 140">${grid}
+    <polygon points="${shape}" fill="${p.jersey}44" stroke="${p.jersey}" stroke-width="2"/>
+    ${STAT_KEYS.map((k,i)=>{const[x,y]=pt(118,i);return `<text x="${x}" y="${y}" fill="#8d8597" font-family="var(--mono)" font-size="8" text-anchor="middle" dominant-baseline="middle">${k}</text>`;}).join('')}
+  </svg>`;
+}
+function emberBurst(e,col){
+  const rect=document.querySelector('.court').getBoundingClientRect();
+  for(let i=0;i<10;i++){
+    const s=document.createElement('div');s.className='ember';s.style.background=col;
+    s.style.left=(e.clientX-rect.left)+'px';s.style.top=(e.clientY-rect.top)+'px';
+    document.querySelector('.court').appendChild(s);
+    const ang=Math.random()*6.28,dist=20+Math.random()*40;
+    s.animate([{transform:'translate(0,0)',opacity:1},{transform:`translate(${Math.cos(ang)*dist}px,${Math.sin(ang)*dist-20}px)`,opacity:0}],
+      {duration:600+Math.random()*300,easing:'ease-out'}).onfinish=()=>s.remove();
+  }
+}
+
+/* ---------------- VS SLAM ---------------- */
+function doVS(){
+  if(squad.length<3) return;
+  const mine=squad.map(id=>ROSTER.find(p=>p.id===id));
+  const rivals=ROSTER.filter(p=>!squad.includes(p.id)).slice(0,3);
+  document.getElementById('vsleft').innerHTML=`<div class="vs-team">YOUR SQUAD · ${stance.toUpperCase()}</div>`+
+    mine.map(p=>`<div class="vs-player" style="color:${p.jersey}">${p.nm}</div>`).join('');
+  document.getElementById('vsright').innerHTML=`<div class="vs-team">THE GHOSTS</div>`+
+    rivals.map(p=>`<div class="vs-player">${p.nm}</div>`).join('');
+  document.getElementById('vs').classList.add('on');
+}
+function closeVS(){document.getElementById('vs').classList.remove('on');showScreen('map');}
+
+/* ---------------- WORLD MAP ---------------- */
+const CONTINENTS=[
+  /* stylized chalk-line landmasses (not geographically exact — arcade world) */
+  "M120,120 L250,110 L300,150 L280,210 L210,230 L150,210 L110,170 Z",            /* N. America */
+  "M250,270 L320,280 L340,360 L300,420 L260,400 L250,330 Z",                     /* S. America */
+  "M450,120 L540,115 L560,160 L500,180 L455,160 Z",                              /* Europe */
+  "M460,190 L560,185 L580,290 L510,340 L470,270 Z",                              /* Africa */
+  "M580,110 L860,120 L880,200 L760,230 L640,210 L590,160 Z",                     /* Asia */
+  "M800,300 L880,300 L890,350 L820,360 Z"                                        /* Oceania */
+];
+function renderMap(){
+  const svg=document.getElementById('worldsvg');
+  const lon=p=>CITIES.find(c=>c.id===p);
+  const routes=ROUTES.map(([a,b])=>{
+    const A=lon(a),B=lon(b);const mx=(A.x+B.x)/2,my=Math.min(A.y,B.y)-40;
+    return `<path class="route" d="M${A.x},${A.y} Q${mx},${my} ${B.x},${B.y}"/>`;}).join('');
+  const nodes=CITIES.map(c=>`
+    <g class="node ${c.tier==='final'?'final':''}" data-id="${c.id}" onclick="selectCity('${c.id}')">
+      <circle class="halo" cx="${c.x}" cy="${c.y}" r="13" stroke="${c.col}" opacity=".4"/>
+      <circle class="dot" cx="${c.x}" cy="${c.y}" r="6" fill="${c.col}"/>
+      <text x="${c.x}" y="${c.y-18}">${c.team}</text>
+    </g>`).join('');
+  svg.innerHTML=
+    `<rect width="1000" height="500" fill="none"/>`+
+    /* faint lat/long grid */
+    [...Array(9)].map((_,i)=>`<line x1="${i*125}" y1="0" x2="${i*125}" y2="500" stroke="rgba(241,236,224,.04)"/>`).join('')+
+    [...Array(5)].map((_,i)=>`<line x1="0" y1="${i*125}" x2="1000" y2="${i*125}" stroke="rgba(241,236,224,.04)"/>`).join('')+
+    CONTINENTS.map(d=>`<path class="continent" d="${d}"/>`).join('')+
+    routes+nodes;
+}
+function crest(c,size){
+  const init=c.team.split(' ').map(w=>w[0]).slice(0,2).join('');
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 110">
+    <path d="M10,8 H90 V62 Q90,96 50,108 Q10,96 10,62 Z" fill="${c.col}22" stroke="${c.col}" stroke-width="3"/>
+    <path d="M10,8 H90 V30 H10 Z" fill="${c.col}"/>
+    <text x="50" y="26" fill="#16131a" font-family="Anton,sans-serif" font-size="15" text-anchor="middle">${c.cc}</text>
+    <text x="50" y="78" fill="${c.col}" font-family="Anton,sans-serif" font-size="34" text-anchor="middle">${init}</text>
+  </svg>`;
+}
+function selectCity(id){
+  const c=CITIES.find(x=>x.id===id);
+  document.querySelectorAll('.node').forEach(n=>n.classList.toggle('sel',n.dataset.id===id));
+  const tierLabel={regional:'Regional Ladder',continental:'Continental Bracket',final:'World Final'}[c.tier];
+  const tierCol=c.col;
+  document.getElementById('citycard').innerHTML=`
+    <div class="tier" style="color:${tierCol}">${tierLabel}</div>
+    <div class="city-name">${c.team}</div>
+    <div class="city-loc">${c.city} · ${c.cc}</div>
+    <div class="crest-big">${crest(c,90)}</div>
+    <div class="court-tag">◳ ${c.court} Court</div>
+    <div class="court-tweak">${c.tweak}</div>
+    <button class="play-here" onclick="this.textContent='► TIP-OFF…';"><span>${c.tier==='final'?'CHALLENGE FOR THE BELT':'PLAY THIS STOP'}</span></button>`;
+}
+
+/* ---------------- NAV ---------------- */
+function showScreen(s){
+  document.getElementById('select').classList.toggle('on',s==='select');
+  document.getElementById('map').classList.toggle('on',s==='map');
+  document.getElementById('tab-select').classList.toggle('active',s==='select');
+  document.getElementById('tab-map').classList.toggle('active',s==='map');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ---------------- INIT ---------------- */
+renderRoster();renderSlots();renderStances();renderDetail();renderMap();
+</script>
+</body>
+</html>

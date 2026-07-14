@@ -1,0 +1,242 @@
+{
+  "_meta": {
+    "game": "Top Gun",
+    "console": "NES",
+    "publisher": "Konami (1987)",
+    "mapper": "UNROM (Mapper 2), CHR-RAM",
+    "_mapper_provenance": "stated in intake; flagged as needs-verification in prior review",
+    "save": "none",
+    "source_intake": "Reverse-Engineering Intake: Top Gun (NES / Konami, 1987)",
+    "schema_basis": "POE 9-contract v1",
+    "schema_version": "topgun-0.1",
+    "fit_summary": "Breaks the schema HARD. Top Gun is not a navigable-space game; it is a mission state-machine + precision skill-checks. Two load-bearing contracts (World Graph #3, Room/Tile #8) are semantically inapplicable. Compare to RCR (~70% fit).",
+    "contracts_clean": ["interpretation_layer (uses 'aerial' for first time)", "enemy_system_contract (loosely)"],
+    "contracts_strained": ["input_contract", "player_controller_contract", "boss_contract", "validation_layer"],
+    "contracts_inapplicable": [
+      "world_graph_contract  -> no navigable space; forced into degenerate linear chain (kept only to demonstrate the break)",
+      "ability_system_contract  -> no progression abilities; closest analog is pre-mission loadout, moved to loadout_contract",
+      "room_tile_contract  -> no spatial layout; repurposed as view-mode states, which is not what the contract is for"
+    ],
+    "extensions_beyond_spec": [
+      "mission_script_contract  (the CORRECT representation of structure; replaces world_graph for non-spatial games)",
+      "loadout_contract  (pre-mission missile selection with tradeoffs)",
+      "precision_sequence_contract  (carrier landing + refueling skill-checks -- the DEFINING mechanic, no home in the 9)",
+      "resource_contract  (fuel as depleting survival resource)",
+      "instrument_telemetry_contract  (speed/altitude/heading/lock as a live game-state display layer)"
+    ],
+    "provenance_tiers": {
+      "canonical_known": [
+        "F-14 cockpit framing", "carrier landing as defining skill gate",
+        "refueling sequence", "missile loadout selection", "fuel resource loop",
+        "mission-then-land pacing", "linear non-branching progression"
+      ],
+      "estimated": [
+        "player_controller_contract.* numeric values",
+        "enemy_system_contract.enemies[].health",
+        "precision_sequence_contract tolerance windows",
+        "resource_contract fuel values",
+        "loadout_contract per-missile stats"
+      ],
+      "needs_rom_extraction": [
+        "exact mission count and order",
+        "exact missile type stats (power/range/quantity)",
+        "exact landing/refuel tolerance windows and frame data",
+        "exact fuel depletion rate",
+        "frame counts (all actors)"
+      ]
+    },
+    "open_measure_flags": [
+      "mission order modeled as MiG -> carrier -> fortress -> satellite; confirm count and sequence",
+      "missile types modeled as A/B/C with relative tradeoffs; exact values unknown",
+      "whether refuel is per-mission or only between certain missions is unconfirmed"
+    ]
+  },
+
+  "input_contract": {
+    "theme": "aerial interception under pressure",
+    "setting": "open sky / ocean / carrier deck",
+    "protagonist_archetype": "fighter pilot",
+    "tone": "tense-military",
+    "core_ability_style": "instrument management + missile loadout strategy + precision landing",
+    "reference_inspirations": ["80s military aviation action"],
+    "difficulty": "hard",
+    "session_length": "short",
+    "_strain": "core_ability_style has no clean home -- it is skill-check + resource-management, not the movement/combat ability style the field expects"
+  },
+
+  "interpretation_layer": {
+    "movement_model": "aerial",
+    "_movement_model_note": "FIRST USE of the 'aerial' enum value across both intakes -- but the player_controller below proves the contract has no aerial *implementation*",
+    "combat_model": "projectile",
+    "world_structure": "scripted",
+    "_world_structure_strain": "STRAIN: enum was (dense | vertical | sprawling) -- all spatial. Top Gun is 'scripted', a value the enum does not contain. Structure is a mission timeline, not a space.",
+    "progression_style": "mission-based",
+    "_progression_style_strain": "STRAIN: enum was (ability-gated | key-based | hybrid). None apply. Progression is linear mission completion + landing skill gates.",
+    "risk_profile": "resource-attrition",
+    "_risk_profile_note": "real risk is fuel depletion + failed landing, not enemy damage"
+  },
+
+  "world_graph_contract": {
+    "_INAPPLICABLE": "Top Gun has no navigable space. The nodes below are a DEGENERATE LINEAR CHAIN kept only to show the break. Edges are scripted transitions, not traversable connections. The correct representation lives in mission_script_contract.",
+    "nodes": [
+      { "id": "mission_1_mig",      "type": "mission", "connections": ["land_1"], "gates": [], "rewards": [] },
+      { "id": "land_1",             "type": "skill_check", "connections": ["refuel_1"], "gates": ["landing_tolerance"], "rewards": [] },
+      { "id": "refuel_1",           "type": "skill_check", "connections": ["mission_2_carrier"], "gates": ["refuel_contact"], "rewards": ["fuel_restored"] },
+      { "id": "mission_2_carrier",  "type": "mission", "connections": ["land_2"], "gates": [], "rewards": [] },
+      { "id": "land_2",             "type": "skill_check", "connections": ["mission_3_fortress"], "gates": ["landing_tolerance"], "rewards": [] },
+      { "id": "mission_3_fortress", "type": "mission", "connections": ["land_3"], "gates": [], "rewards": [] },
+      { "id": "land_3",             "type": "skill_check", "connections": ["mission_4_satellite"], "gates": ["landing_tolerance"], "rewards": [] },
+      { "id": "mission_4_satellite","type": "boss",    "connections": ["land_final"], "gates": [], "rewards": [] },
+      { "id": "land_final",         "type": "end",     "connections": [], "gates": ["landing_tolerance"], "rewards": ["win"] }
+    ],
+    "edges": [
+      { "from": "mission_1_mig",      "to": "land_1",              "requirement": "objective_clear" },
+      { "from": "land_1",             "to": "refuel_1",            "requirement": "landing_success" },
+      { "from": "refuel_1",           "to": "mission_2_carrier",   "requirement": "refuel_success" },
+      { "from": "mission_2_carrier",  "to": "land_2",              "requirement": "objective_clear" },
+      { "from": "land_2",             "to": "mission_3_fortress",  "requirement": "landing_success" },
+      { "from": "mission_3_fortress", "to": "land_3",              "requirement": "objective_clear" },
+      { "from": "land_3",             "to": "mission_4_satellite", "requirement": "landing_success" },
+      { "from": "mission_4_satellite","to": "land_final",          "requirement": "objective_clear" },
+      { "from": "land_final",         "to": "win",                 "requirement": "landing_success" }
+    ]
+  },
+
+  "ability_system_contract": {
+    "_INAPPLICABLE": "No progression abilities. The only player-chosen capability is missile loadout, which is a strategic resource selection, not a path-gating ability. Moved to loadout_contract.",
+    "abilities": []
+  },
+
+  "player_controller_contract": {
+    "_strain": "MAJOR. The movement block is platformer-shaped (speed/jump_force/gravity/air_control) and is almost entirely wrong for flight. Below is the correct aerial/instrument model the contract does NOT define. All values tier=estimated.",
+    "movement_DEPRECATED_FIELDS": {
+      "jump_force": null,
+      "gravity": null,
+      "air_control": null,
+      "_note": "these fields are meaningless in a cockpit flight model"
+    },
+    "flight_model": {
+      "throttle_speed_min": 200,
+      "throttle_speed_max": 800,
+      "speed_accel": 30,
+      "altitude_climb_rate": 15,
+      "altitude_descent_rate": 20,
+      "pitch_rate": 0.6,
+      "turn_latency": 0.4,
+      "stall_threshold_speed": 180
+    },
+    "combat": {
+      "attack_type": "projectile",
+      "cannon_rate": 0.2,
+      "missile_cooldown": 1.5,
+      "lock_time": 0.8
+    },
+    "health": 100,
+    "iframes": 0.0,
+    "_iframes_note": "no i-frames; survivability is governed by fuel + collision, not hit-stun"
+  },
+
+  "enemy_system_contract": {
+    "enemies": [
+      { "id": "mig_fighter", "behavior": "approach_evade_fire", "health": 20, "movement_pattern": "approach_pass", "spawn_nodes": ["mission_1_mig", "mission_2_carrier", "mission_3_fortress"] },
+      { "id": "carrier_target", "behavior": "static_objective", "health": 120, "movement_pattern": "path_locked", "spawn_nodes": ["mission_2_carrier"] }
+    ],
+    "_note": "loosest-fitting clean contract. STRAIN: spawn_nodes points at the degenerate mission chain; real spawns are script-driven waves. health tier=estimated."
+  },
+
+  "boss_contract": {
+    "_strain": "Fortress / satellite base modeled as boss-style objective targets. The multi-phase pattern model over-specifies; these are high-durability destruction objectives, and reward is mission-advance, not an ability.",
+    "bosses": [
+      { "id": "fortress",  "phases": [ { "phase": 1, "patterns": ["projectile_defense"], "health_threshold": 0.0 } ], "reward": { "advance": "mission_4_satellite" } },
+      { "id": "satellite_base", "phases": [ { "phase": 1, "patterns": ["projectile_defense"], "health_threshold": 0.0 } ], "reward": { "advance": "land_final" }, "_role": "final objective" }
+    ]
+  },
+
+  "room_tile_contract": {
+    "_INAPPLICABLE": "No spatial layout exists. There is a static cockpit mask + a moving horizon, not authored rooms. Repurposed below as VIEW-MODE STATES, which is not what this contract is for -- it confirms the genre has no tile/layout layer.",
+    "rooms": [
+      { "node_id": "*_mission", "layout_type": "cockpit_combat_view", "hazards": ["enemy_fire", "collision"], "platform_density": "none" },
+      { "node_id": "land_*",    "layout_type": "carrier_landing_view", "hazards": ["misalignment", "overspeed"], "platform_density": "none" },
+      { "node_id": "refuel_*",  "layout_type": "refuel_view", "hazards": ["drift", "lost_contact"], "platform_density": "none" }
+    ]
+  },
+
+  "mission_script_contract": {
+    "_extension": "EXTENSION. The CORRECT replacement for world_graph in a non-spatial game. Structure is a linear ordered timeline of objectives and skill-checks.",
+    "sequence": [
+      { "step": 1, "type": "combat_mission", "id": "mig_interception", "objective": "destroy_quota:migs", "fail_on": ["fuel_empty", "destroyed"] },
+      { "step": 2, "type": "precision_sequence", "ref": "landing" },
+      { "step": 3, "type": "precision_sequence", "ref": "refuel" },
+      { "step": 4, "type": "combat_mission", "id": "carrier_attack", "objective": "destroy:carrier_target", "fail_on": ["fuel_empty", "destroyed"] },
+      { "step": 5, "type": "precision_sequence", "ref": "landing" },
+      { "step": 6, "type": "combat_mission", "id": "fortress_strike", "objective": "destroy:fortress", "fail_on": ["fuel_empty", "destroyed"] },
+      { "step": 7, "type": "precision_sequence", "ref": "landing" },
+      { "step": 8, "type": "combat_mission", "id": "satellite_base", "objective": "destroy:satellite_base", "fail_on": ["fuel_empty", "destroyed"] },
+      { "step": 9, "type": "precision_sequence", "ref": "landing", "terminal": true }
+    ],
+    "branching": "none"
+  },
+
+  "loadout_contract": {
+    "_extension": "EXTENSION. Pre-mission strategic capability selection -- the thing ability_system_contract tried and failed to represent.",
+    "selection_timing": "pre_mission",
+    "options": [
+      { "id": "missile_a", "power": "low",    "range": "short",  "quantity": "high" },
+      { "id": "missile_b", "power": "medium", "range": "medium", "quantity": "medium" },
+      { "id": "missile_c", "power": "high",   "range": "long",   "quantity": "low" }
+    ],
+    "always_available": ["cannon"],
+    "_note": "exact stats tier=needs_rom_extraction; relative tradeoffs are the design-critical part"
+  },
+
+  "precision_sequence_contract": {
+    "_extension": "EXTENSION -- and the single most important one. The carrier landing and refueling are the DEFINING mechanic and have NO home anywhere in the original 9. These are discrete skill-checks with tolerance windows, not combat and not traversal.",
+    "sequences": {
+      "landing": {
+        "inputs_tracked": ["altitude", "speed", "horizontal_alignment"],
+        "tolerance_windows": {
+          "altitude": [40, 60],
+          "speed": [220, 280],
+          "alignment_px": [-4, 4]
+        },
+        "fail_result": "crash",
+        "_note": "this is what players remember Top Gun for; tolerance is deliberately punishing"
+      },
+      "refuel": {
+        "inputs_tracked": ["drift", "contact_hold_time"],
+        "tolerance_windows": {
+          "drift_px": [-3, 3],
+          "required_hold_seconds": 2.0
+        },
+        "fail_result": "lost_contact_retry"
+      }
+    }
+  },
+
+  "resource_contract": {
+    "_extension": "EXTENSION. Fuel is a depleting survival resource -- distinct from RCR's accumulating money economy. (Both genres need a resource layer the 9 never had; they need it in opposite directions.)",
+    "resources": {
+      "fuel": { "model": "depleting", "max": 100, "depletion_rate_per_sec": 0.5, "restored_by": "refuel_sequence", "fail_on_empty": true },
+      "missiles": { "model": "consumable", "source": "loadout_contract", "restored_by": "none" }
+    }
+  },
+
+  "instrument_telemetry_contract": {
+    "_extension": "EXTENSION. Live game-state read out to the player as instruments. In a metroidvania this is a simple HUD; here it IS the gameplay surface (you fly the numbers, not the plane).",
+    "instruments": ["speed", "altitude", "heading", "fuel", "ammo", "target_lock", "horizon"],
+    "readability_priority": "instruments must stay legible against sky/ocean contrast",
+    "_note": "overlaps the pixel/rendering MCP -- readability is a rendering constraint, but the values are game state"
+  },
+
+  "validation_layer": {
+    "valid": true,
+    "errors": [],
+    "checks": [
+      "mission_sequence_complete: every step reachable in order to terminal landing",
+      "loadout_sufficiency: at least one loadout can clear each combat mission's objective quota",
+      "fuel_budget: fuel at mission start is enough to reach a refuel/landing before depletion",
+      "skill_check_achievable: tolerance windows are non-empty and physically reachable by the flight_model"
+    ],
+    "_strain": "The original spatial checks (reachability, gate-solvability, dead-ends) are inapplicable -- there is no space to traverse. ALL meaningful checks here are new: fuel_budget and skill_check_achievable have no analog in the Controidvania-derived validator."
+  }
+}

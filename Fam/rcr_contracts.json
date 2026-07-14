@@ -1,0 +1,222 @@
+{
+  "_meta": {
+    "game": "River City Ransom",
+    "alt_title": "Downtown Nekketsu Monogatari",
+    "console": "NES / Famicom",
+    "mapper": "MMC3 (Mapper 4)",
+    "save": "password (no SRAM)",
+    "source_intake": "Reverse-Engineering Intake: River City Ransom",
+    "schema_basis": "POE 9-contract v1",
+    "schema_version": "rcr-0.1",
+    "extensions_beyond_spec": [
+      "economy_contract  (no equivalent in original 9)",
+      "stat_progression_contract  (no equivalent in original 9)",
+      "world_graph_contract.edges[].requirement vocabulary expanded beyond movement abilities",
+      "ability_system_contract.abilities[].acquisition + cost (purchase-gated, not node-gated)",
+      "ability_system_contract.abilities[].gates_unlocked is empty for all (breaks original 'every ability unlocks >=1 path' rule)",
+      "player_controller_contract.scales_with_stats + friendly_fire",
+      "validation_layer.checks.economy_reachable (new solvability check)"
+    ],
+    "provenance_tiers": {
+      "canonical_known": [
+        "mapper", "save", "boss names", "ability/move names",
+        "open-city / boss-gated structure", "stat-mutation-via-food loop",
+        "co-op friendly fire", "rescue Cyndi / defeat Slick win condition"
+      ],
+      "estimated": [
+        "player_controller_contract.* numeric values",
+        "enemy_system_contract.enemies[].health",
+        "economy_contract prices"
+      ],
+      "needs_rom_extraction": [
+        "frame counts (all actors)",
+        "exact stat tables and per-item stat deltas",
+        "exact damage / startup / active / recovery frame data",
+        "exact money drop values",
+        "exact screen/area count"
+      ]
+    },
+    "open_measure_flags": [
+      "ability list is partial; full move table needs verification",
+      "boss roster confirmed but per-boss HP/phase data is estimated",
+      "Benny & Clyde modeled as a paired encounter; confirm whether engine treats them as one fight"
+    ]
+  },
+
+  "input_contract": {
+    "theme": "loyalty and street dominance",
+    "setting": "open urban city (River City)",
+    "protagonist_archetype": "student brawler",
+    "tone": "comedic-gritty",
+    "core_ability_style": "learnable martial moves + permanent stat growth via consumption",
+    "reference_inspirations": ["kunio-kun lineage", "urban high-school gang brawler"],
+    "difficulty": "normal",
+    "session_length": "long"
+  },
+
+  "interpretation_layer": {
+    "movement_model": "grounded",
+    "combat_model": "hybrid",
+    "_combat_model_note": "melee primary + thrown-object projectiles (bats, chains, rocks)",
+    "world_structure": "sprawling",
+    "progression_style": "hybrid",
+    "_progression_style_note": "STRAIN: original enum (ability-gated | key-based | hybrid) does not express RCR's real model = boss-flag + stat-threshold + money gating",
+    "risk_profile": "attrition"
+  },
+
+  "world_graph_contract": {
+    "nodes": [
+      { "id": "node_school_exit",      "type": "start",     "connections": ["node_downtown_hub"], "gates": [], "rewards": [] },
+      { "id": "node_downtown_hub",     "type": "hub",       "connections": ["node_shopping_mall", "node_armory_books", "node_residential"], "gates": [], "rewards": [] },
+      { "id": "node_shopping_mall",    "type": "traversal", "connections": ["node_downtown_hub"], "gates": [], "rewards": [], "_role": "economy: food + weapon shops" },
+      { "id": "node_armory_books",     "type": "traversal", "connections": ["node_downtown_hub"], "gates": [], "rewards": [], "_role": "economy: move-book shops" },
+      { "id": "node_residential",      "type": "combat",    "connections": ["node_park"], "gates": ["boss:moose"], "rewards": ["money", "flag:park_unlocked"] },
+      { "id": "node_park",             "type": "combat",    "connections": ["node_industrial"], "gates": ["boss:benny_clyde"], "rewards": ["money", "flag:industrial_unlocked"] },
+      { "id": "node_industrial",       "type": "combat",    "connections": ["node_river_bridge"], "gates": ["boss:blade"], "rewards": ["money", "flag:bridge_unlocked"] },
+      { "id": "node_river_bridge",     "type": "traversal", "connections": ["node_hideout_approach"], "gates": ["stat:willpower>=20"], "rewards": [] },
+      { "id": "node_hideout_approach", "type": "combat",    "connections": ["node_hideout_showdown"], "gates": ["boss:turk", "boss:ivan"], "rewards": ["money", "flag:showdown_unlocked"] },
+      { "id": "node_hideout_showdown", "type": "boss",      "connections": ["node_rescue_cyndi"], "gates": ["boss:slick"], "rewards": ["flag:rescue_unlocked"] },
+      { "id": "node_rescue_cyndi",     "type": "end",       "connections": [], "gates": [], "rewards": ["win"] }
+    ],
+    "edges": [
+      { "from": "node_school_exit",      "to": "node_downtown_hub",     "requirement": "none" },
+      { "from": "node_downtown_hub",     "to": "node_shopping_mall",    "requirement": "none" },
+      { "from": "node_downtown_hub",     "to": "node_armory_books",     "requirement": "none" },
+      { "from": "node_downtown_hub",     "to": "node_residential",      "requirement": "none" },
+      { "from": "node_residential",      "to": "node_park",             "requirement": "boss_defeated:moose" },
+      { "from": "node_park",             "to": "node_industrial",       "requirement": "boss_defeated:benny_clyde" },
+      { "from": "node_industrial",       "to": "node_river_bridge",     "requirement": "boss_defeated:blade" },
+      { "from": "node_river_bridge",     "to": "node_hideout_approach", "requirement": "stat_threshold:willpower>=20" },
+      { "from": "node_hideout_approach", "to": "node_hideout_showdown", "requirement": "boss_defeated:turk AND boss_defeated:ivan" },
+      { "from": "node_hideout_showdown", "to": "node_rescue_cyndi",     "requirement": "boss_defeated:slick" }
+    ],
+    "_requirement_vocab_note": "STRAIN: original requirement vocabulary was movement abilities (e.g. 'double_jump'). RCR needs boss-defeat flags, stat thresholds, and compound (AND) requirements."
+  },
+
+  "ability_system_contract": {
+    "_note": "STRAIN: in RCR, abilities are purchased COMBAT moves, not map keys. None gate progression, so gates_unlocked is empty for all and the original rule 'every ability must unlock >=1 new path' does not hold. Acquisition is purchase-gated at a shop node, not arrival-gated.",
+    "abilities": [
+      { "id": "stone_hands",  "type": "combat", "acquisition": "purchase", "unlock_node": "node_armory_books", "cost": 5.0, "gates_unlocked": [], "scaling": true },
+      { "id": "dragon_feet",  "type": "combat", "acquisition": "purchase", "unlock_node": "node_armory_books", "cost": 5.0, "gates_unlocked": [], "scaling": true },
+      { "id": "grand_slam",   "type": "combat", "acquisition": "purchase", "unlock_node": "node_armory_books", "cost": 5.0, "gates_unlocked": [], "scaling": true },
+      { "id": "acro_circus",  "type": "combat", "acquisition": "purchase", "unlock_node": "node_armory_books", "cost": 5.0, "gates_unlocked": [], "scaling": true }
+    ],
+    "_partial": "Move list confirmed-partial; full table needs verification (see _meta.open_measure_flags)."
+  },
+
+  "player_controller_contract": {
+    "_note": "Base values are tier=estimated. STRAIN: these are not static in RCR — they mutate via stat_progression_contract. friendly_fire is an RCR co-op quirk with no field in the original contract.",
+    "scales_with_stats": true,
+    "stat_source_ref": "stat_progression_contract",
+    "friendly_fire": true,
+    "movement": {
+      "speed": 4.0,
+      "jump_force": 9.0,
+      "gravity": 0.7,
+      "air_control": 0.7
+    },
+    "combat": {
+      "attack_type": "melee",
+      "attack_rate": 0.4,
+      "base_damage": 8,
+      "thrown_weapon_damage": 14
+    },
+    "health": 100,
+    "iframes": 0.5
+  },
+
+  "enemy_system_contract": {
+    "enemies": [
+      { "id": "thug_generic", "behavior": "approach",          "health": 30, "movement_pattern": "horizontal", "spawn_nodes": ["node_residential", "node_park", "node_industrial"] },
+      { "id": "kicker_fast",  "behavior": "approach_aggressive","health": 25, "movement_pattern": "horizontal", "spawn_nodes": ["node_park", "node_industrial"] },
+      { "id": "bruiser_heavy","behavior": "approach_slow",      "health": 60, "movement_pattern": "horizontal", "spawn_nodes": ["node_industrial", "node_hideout_approach"] },
+      { "id": "weapon_user",  "behavior": "approach_armed",     "health": 35, "movement_pattern": "horizontal", "spawn_nodes": ["node_residential", "node_industrial"] },
+      { "id": "dojo_fighter", "behavior": "approach_skilled",   "health": 50, "movement_pattern": "horizontal", "spawn_nodes": ["node_hideout_approach"] }
+    ],
+    "_note": "health values tier=estimated. Crowd spawns intentionally exceed sprite budget -> flicker is a feature, not a bug."
+  },
+
+  "boss_contract": {
+    "_note": "STRAIN: original BOSS CONTRACT's multi-phase model over-specifies for RCR — bosses are high-stat gang leaders, not pattern-phase bosses. Reward is money + progression flag, NOT an ability (original example reward was 'double_jump').",
+    "bosses": [
+      { "id": "moose",       "phases": [ { "phase": 1, "patterns": ["heavy_swing"], "health_threshold": 1.0 } ], "reward": { "money": 30, "flag": "park_unlocked" } },
+      { "id": "benny_clyde", "phases": [ { "phase": 1, "patterns": ["tag_team"],    "health_threshold": 1.0 } ], "reward": { "money": 35, "flag": "industrial_unlocked" }, "_note": "modeled as paired encounter" },
+      { "id": "blade",       "phases": [ { "phase": 1, "patterns": ["weapon_rush"], "health_threshold": 1.0 } ], "reward": { "money": 40, "flag": "bridge_unlocked" } },
+      { "id": "turk",        "phases": [ { "phase": 1, "patterns": ["grapple"],     "health_threshold": 1.0 } ], "reward": { "money": 45, "flag": "showdown_partial_turk" } },
+      { "id": "ivan",        "phases": [ { "phase": 1, "patterns": ["heavy_swing"], "health_threshold": 1.0 } ], "reward": { "money": 45, "flag": "showdown_partial_ivan" } },
+      { "id": "slick",       "phases": [ { "phase": 1, "patterns": ["learned_moves"], "health_threshold": 0.5 }, { "phase": 2, "patterns": ["enrage"], "health_threshold": 0.0 } ], "reward": { "flag": "rescue_unlocked" }, "_role": "final antagonist / narrative gate" }
+    ]
+  },
+
+  "room_tile_contract": {
+    "_note": "STRAIN: room model is platforming-oriented (platform_density, spike-style hazards). RCR is a brawler — most layouts are open arenas/streets with no platforming hazards; some nodes are shop interiors (a layout type not in the original enum).",
+    "rooms": [
+      { "node_id": "node_downtown_hub",     "layout_type": "street_corridor", "hazards": [], "platform_density": "none" },
+      { "node_id": "node_shopping_mall",    "layout_type": "shop_interior",   "hazards": [], "platform_density": "none" },
+      { "node_id": "node_armory_books",     "layout_type": "shop_interior",   "hazards": [], "platform_density": "none" },
+      { "node_id": "node_residential",      "layout_type": "arena",           "hazards": [], "platform_density": "low" },
+      { "node_id": "node_park",             "layout_type": "arena",           "hazards": [], "platform_density": "low" },
+      { "node_id": "node_industrial",       "layout_type": "arena",           "hazards": ["thrown_props"], "platform_density": "low" },
+      { "node_id": "node_river_bridge",     "layout_type": "corridor",        "hazards": ["edge_fall"], "platform_density": "none" },
+      { "node_id": "node_hideout_approach", "layout_type": "arena",           "hazards": [], "platform_density": "low" },
+      { "node_id": "node_hideout_showdown", "layout_type": "arena",           "hazards": [], "platform_density": "none" }
+    ]
+  },
+
+  "economy_contract": {
+    "_extension": "EXTENSION beyond original 9. RCR's core loop (defeat -> cash -> shop -> grow) has no home in the base contract set. This is the single biggest gap the intake exposes.",
+    "currency": "money",
+    "drop_rules": [
+      { "enemy": "thug_generic",  "money_range": [1, 4] },
+      { "enemy": "kicker_fast",   "money_range": [2, 5] },
+      { "enemy": "bruiser_heavy", "money_range": [4, 8] },
+      { "enemy": "weapon_user",   "money_range": [3, 6] },
+      { "enemy": "dojo_fighter",  "money_range": [6, 10] }
+    ],
+    "shops": [
+      {
+        "node": "node_shopping_mall",
+        "type": "food_and_weapons",
+        "inventory": [
+          { "item": "burger",   "cost": 2.0, "effect": "heal + permanent stat delta", "stat_ref": "stat_progression_contract.consumables.burger" },
+          { "item": "sushi",    "cost": 4.0, "effect": "heal + permanent stat delta", "stat_ref": "stat_progression_contract.consumables.sushi" },
+          { "item": "chain",    "cost": 6.0, "effect": "equip thrown weapon" }
+        ]
+      },
+      {
+        "node": "node_armory_books",
+        "type": "move_books",
+        "inventory": [
+          { "item": "stone_hands_book", "cost": 5.0, "effect": "unlock ability stone_hands" },
+          { "item": "dragon_feet_book", "cost": 5.0, "effect": "unlock ability dragon_feet" }
+        ]
+      }
+    ],
+    "_note": "prices tier=estimated"
+  },
+
+  "stat_progression_contract": {
+    "_extension": "EXTENSION beyond original 9. Permanent stat mutation via consumption is RCR's defining technical quirk and has no field in the base set.",
+    "stats": ["punch", "kick", "throw", "strength", "stamina", "willpower", "agility", "max_power"],
+    "mutation_model": "permanent_on_consume",
+    "consumables": {
+      "burger":  { "stamina": "+", "max_power": "+" },
+      "sushi":   { "willpower": "+", "agility": "+" },
+      "book":    { "willpower": "+", "unlocks_move": true }
+    },
+    "_note": "exact per-item stat deltas tier=needs_rom_extraction",
+    "feeds": ["player_controller_contract"]
+  },
+
+  "validation_layer": {
+    "valid": true,
+    "errors": [],
+    "checks": [
+      "reachability: every node reachable from node_school_exit",
+      "gate_solvability: every gate's requirement is satisfiable along some path",
+      "difficulty_curve: enemy/boss difficulty increases by district order",
+      "economy_reachable: enough money is obtainable in reachable nodes to afford the stat/move thresholds required by the next gate"
+    ],
+    "_new_check_note": "economy_reachable is a NEW validation rule RCR forces — the original validation never had to confirm a grind loop was solvable, because Controidvania gates resolve on abilities, not purchased stats."
+  }
+}

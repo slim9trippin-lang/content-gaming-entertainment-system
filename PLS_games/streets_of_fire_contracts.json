@@ -1,0 +1,198 @@
+{
+  "poe_contract_package": {
+    "_meta": {
+      "title": "STREETS OF FIRE — Big3 Fusion",
+      "genre_class": "sports_brawler (Big3 half-court 3v3)",
+      "host_skeleton": "Sports/Court (NEW — not in the original 4)",
+      "guest_skeleton": "Arena Brawler (Flashpoint fight, via Sub-Genre Mixer)",
+      "identity_type": "logic-carried CORE + render-carried SEASONING (hybrid — see schema_notes)",
+      "provenance_legend": {
+        "locked": "Slim fork decision — do not auto-change",
+        "design_default": "proposed starting value",
+        "tunable": "exposed on the arcade<->sim slider",
+        "needs_playtest": "balance value, validate in greybox"
+      },
+      "schema_notes": [
+        "World Graph (C3) is polymorphed: in a sports title the 'graph' is the progression/ladder/map, NOT court traversal.",
+        "Ability System (C4) is polymorphed again, confirming player_controller/ability are polymorphic dialects (River City + Top Gun + Rad Racer pattern holds).",
+        "Boss (C7) maps cleanly: ladder-apex rival teams ARE bosses. Best 1:1 fit of any contract.",
+        "HYBRID IDENTITY FINDING: unlike Rad Racer (whole identity render-carried -> needs rendering_illusion_contract), this game SURVIVES greybox. Core is logic-carried; only the FLAIR (heat flames, gamebreaker cinematic, fight cam) is render-carried. This is a THIRD category your schema hasn't logged: 'render-carried seasoning' — a juice layer that is cosmetic, not load-bearing. It needs a rendering_juice_contract (optional FX bindings), NOT a rendering_illusion_contract (mandatory transform)."
+      ]
+    },
+
+    "new_primitives_introduced": [
+      "style_economy_contract  (disrespect-as-currency accumulator -> Gamebreaker)",
+      "momentum_contract       (streak detector -> Heat/On-Fire state)",
+      "flashpoint_guest_contract (Host/Guest fight with rating-tiered resolution)"
+    ],
+
+    "carried_over_primitives_confirmed": {
+      "economy_contract": "RE-APPEARS as stamina (depleting resource). Confirms it is schema-level, not a River City patch.",
+      "stat_progression_contract": "RE-APPEARS as season archetype growth + morale. Confirms schema-level.",
+      "_note": "Two primitives first surfaced in NES conversions now appear in an unrelated genre. Strong evidence they belong in the base 9, not as per-game additions."
+    },
+
+    "contract_1_input": {
+      "_role": "Constrained user/match configuration",
+      "mode_select": ["1v1", "3v3", "dunk_contest", "shootout_3pt", "shootout_4pt", "season_world_tour", "ladder_1up1down"],
+      "difficulty": "easy | normal | hard",
+      "session_length": "short(11) | medium(21) | long(50)",
+      "rating_target": {
+        "value": "M_18plus",
+        "provenance": "locked",
+        "options": ["M_18plus", "T_teen", "E_everyone"],
+        "_note": "Drives flashpoint resolution mode in primitive_C."
+      },
+      "roster_source": {
+        "value": "original_archetypes",
+        "provenance": "locked",
+        "likeness_layer": "skin_overlay (licensed names/faces map ON TOP, zero mechanical change)"
+      }
+    },
+
+    "contract_2_interpretation": {
+      "_role": "Lock mechanical decisions before downstream contracts obey",
+      "match_ruleset": {
+        "court": "half_court_single_hoop",
+        "possession_model": { "value": "check_ball", "provenance": "locked" },
+        "scoring_zones": { "two": 2, "three": 3, "four_point_circles": 4 },
+        "win_condition": { "target_score": 21, "win_by": 2, "provenance": "design_default", "range": "11..50" },
+        "comeback_valve": "bring_the_fire (trailing team, once per game)"
+      },
+      "feel_axis": {
+        "arcade_sim_slider": { "type": "global float 0..1", "provenance": "tunable",
+          "presets": { "dunk_contest": 0.0, "season_ranked": 0.8, "core_3v3": 0.4 } }
+      }
+    },
+
+    "contract_3_progression_graph": {
+      "_role": "POLYMORPHED World Graph -> progression/ladder/map (NOT court traversal)",
+      "nodes": [
+        { "id": "city_node", "type": "map_hub", "carries": "home_team + court_skin + crowd_id", "connections": ["continental_bracket"] },
+        { "id": "ladder_rung", "type": "1up1down", "rule": "WIN->climb, LOSE->drop", "connections": ["next_rung"] },
+        { "id": "season_match", "type": "scheduled", "affects": ["stamina", "morale", "stat_progression"] },
+        { "id": "world_final", "type": "apex", "gates": ["regional_champ", "continental_champ"] }
+      ],
+      "validation_rules": ["ladder must be completable", "no orphan city nodes", "every bracket has an exit to world_final"]
+    },
+
+    "contract_4_ability_system": {
+      "_role": "POLYMORPHED — abilities are METER-GATED specials, not path-gates",
+      "archetypes": [
+        { "id": "aerial",   "duel_slot": "JORDAN", "signature": "posterizer", "lever": "fastest gamebreaker fill on dunks" },
+        { "id": "marksman", "duel_slot": "BIRD",   "signature": "deep_four",  "lever": "fastest heat ignition + deepest 4pt range" },
+        { "id": "handle",   "signature": "ankle_break_chain", "lever": "style-per-trick multiplier" },
+        { "id": "wall",     "signature": "gamebreaker_block", "lever": "best block + flashpoint stats" },
+        { "id": "engine",   "signature": "dime",   "lever": "feeds teammate meters via assists" },
+        { "id": "bruiser",  "signature": "enforcer","lever": "wins flashpoints, raises team tension threshold" }
+      ],
+      "ability_gate_rule": "specials fire from meters (Style / Heat), never from world position",
+      "data_format": "ArchetypeSO (ScriptableObject)"
+    },
+
+    "contract_5_player_controller": {
+      "_role": "Numerical basketball physics — where game feel lives",
+      "movement": { "speed": 5.0, "accel": 0.7, "provenance": "needs_playtest" },
+      "dribble": { "trick_stick": true, "break_resolves_on": "defender_hip_orientation", "_note": "2K floor: no coin-flip ankle-breakers" },
+      "shooting": {
+        "input": "shot_meter_green_window",
+        "green_window_ms": { "base": 90, "on_fire": 150, "provenance": "tunable" },
+        "contest_penalty": true
+      },
+      "defense": { "contest": true, "steal_window_ms": 120, "block_timing": true },
+      "stamina": { "max": 100, "drain_on_sprint": 1.2, "links_to": "economy_contract" }
+    },
+
+    "contract_6_opponent_system": {
+      "_role": "POLYMORPHED Enemy System -> opposing archetype AI",
+      "ai_profiles_reuse": "contract_4 archetypes (opponents are archetype instances, not bespoke 'enemies')",
+      "team_stance": ["run_and_gun", "lockdown", "showtime"],
+      "behavior_fields": { "shot_selection", "double_team_logic", "flashpoint_aggression" },
+      "scaling": "stance + difficulty modulate, not hardcoded per opponent"
+    },
+
+    "contract_7_rival_boss": {
+      "_role": "Boss = ladder/season APEX rival (cleanest 1:1 fit in the package)",
+      "bosses": [
+        { "id": "city_champ",       "tier": 1, "reward": "unlock_continental" },
+        { "id": "continental_king", "tier": 2, "reward": "unlock_world_final" },
+        { "id": "world_rival",      "tier": 3, "phases": ["normal", "on_fire_buffed", "gamebreaker_loaded"], "reward": "championship + roster_unlock" }
+      ],
+      "_note": "King-of-the-Court final reuses the on-fire/gamebreaker systems as a difficulty escalator — no new boss mechanics needed."
+    },
+
+    "contract_8_court_layout": {
+      "_role": "POLYMORPHED Room/Tile -> court archetypes (spatial skins that tweak rules)",
+      "courts": [
+        { "id": "rooftop",    "rule_tweak": "wind nudges slider toward chaos (+0.1 arcade)" },
+        { "id": "cage",       "rule_tweak": "tighter bounds, more contact -> faster tension fill" },
+        { "id": "arena",      "rule_tweak": "neutral (sim baseline)" },
+        { "id": "beachfront", "rule_tweak": "soft surface -> reduced dunk physics" }
+      ],
+      "data_format": "CourtSO",
+      "ties_to": "contract_3 city_node (each map city seeds a court archetype)"
+    },
+
+    "contract_9_validation": {
+      "_role": "Pre-ship QA gate — fail = block",
+      "checks": [
+        "every mode reaches a win condition (no infinite games)",
+        "Style->Gamebreaker->steal-back->Block standoff is mathematically resolvable (no soft-lock)",
+        "Heat cannot stack to permanent on-fire (must have a cool path)",
+        "ladder 1up1down is completable from bottom rung",
+        "rating_target legally maps to a flashpoint resolution mode (no M-only fight in an E build)",
+        "stamina cannot reach negative; bring_the_fire cannot fire twice"
+      ],
+      "on_fail": "generation/build blocked, errors[] returned"
+    },
+
+    "primitive_A_style_economy_contract": {
+      "_role": "NEW — disrespect-as-currency (Street DNA)",
+      "meter": "Style (0..100)",
+      "fill_sources": { "broken_ankles": 15, "posterizer": 25, "and1": 20, "contested_make": 10, "block": 12, "provenance": "needs_playtest" },
+      "spend": {
+        "gamebreaker": { "cost": 100, "effect": "4pt FIREBALL make + SUBTRACTS from opponent score", "counter": "gamebreaker_block (defender spends own Style)" }
+      },
+      "decay": "slow passive drain to prevent hoarding",
+      "_distinct_from": "momentum_contract — Style measures DISRESPECT, not consistency"
+    },
+
+    "primitive_B_momentum_contract": {
+      "_role": "NEW — streak detector (Jam DNA)",
+      "state_machine": ["cold", "heating_up(@3 makes)", "on_fire(@4 makes)"],
+      "on_fire_effects": { "green_window": "+60ms", "auto_swish_range": "mid", "fx_flag": "flame_trail" },
+      "cool_conditions": ["opponent scores", "two consecutive misses"],
+      "_distinct_from": "style_economy — Heat measures CONSISTENCY; orthogonal meters are the design keystone"
+    },
+
+    "primitive_C_flashpoint_guest_contract": {
+      "_role": "NEW — Host/Guest fight (Mixer Rules 2,4,5 applied)",
+      "trigger": { "source": "Tension accumulator (hard fouls, dunk-ons, trash-talk)", "fires_at": "threshold (bruiser raises team threshold)" },
+      "handshake_in": "{ aggressor, target, tension, crowd_heat }",
+      "handshake_out": "{ penalized_player } -> PenaltyBox(1 defensive possession)",
+      "logic_culling": "Host sim + economy AI pause during Guest (Rule 5)",
+      "input_context_flag": "InputContext=Fight disables trick-stick/shoot listeners (Rule 4)",
+      "resolution_modes": {
+        "brawl": {
+          "rating": "M_18plus", "default": true, "provenance": "locked",
+          "style": "blades_of_steel (side-view timed combat, block/jab/haymaker, <=6s)",
+          "penalty_target": "LOSER",
+          "outcome": "loser -> penalty box; offended team plays numbers-up next possession; winner +Style"
+        },
+        "scrum": {
+          "rating": "E_everyone | family", "provenance": "locked",
+          "style": "nes_ice_hockey (benches CLEAR, comedic dust-cloud scrum, NO combat input, auto-resolve)",
+          "penalty_target": "RETALIATOR (escalator)",
+          "_design_intent": "Penalizing the one who fights BACK discourages escalation instead of rewarding fight-winning. Keeps consequence, removes glorification. Rating-safe.",
+          "outcome": "retaliator -> penalty box; no blood; ref ejection animation"
+        },
+        "off": {
+          "rating": "toggle (any)", "provenance": "locked",
+          "style": "no_minigame",
+          "outcome": "flashpoint resolves as hard_foul -> free throws OR possession swap"
+        }
+      },
+      "validation_link": "contract_9 enforces rating_target -> legal resolution mode"
+    }
+  }
+}
