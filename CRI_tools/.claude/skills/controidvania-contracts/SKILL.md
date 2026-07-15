@@ -1,180 +1,87 @@
 ---
 name: controidvania-contracts
-description: Generate the design-fingerprint half of the POE contract pipeline for Controidvania (Kinesthetic Explorer) games. Outputs full, production-ready JSON for contracts 1–4 (Input, Interpretation, World Graph, Ability System) and stops there. Contracts 5–9 require greybox playtesting and are intentionally excluded — no physics values, no enemy stats, no room layouts.
+description: Generate all nine POE/PLS contracts (Input, Interpretation, World Graph, Ability System, Player Controller, Enemy System, Boss, Room/Tile, Validation Layer) for a Controidvania-style ability-gated 2D exploration game. Use this whenever the user wants to design a Metroidvania, build a non-linear world graph, generate an ability progression tree, produce room geometry and enemy/boss placement, or needs deterministic, cross-validated JSON output that a downstream engine could consume.
 ---
 
-# Controidvania-Contracts Skill
+# Controidvania Contract Generator
 
-## When to use
+*Originally scoped to the first 4 contracts only (the "design-fingerprint half") — deliberately stopping short of runtime tuning because that's where AI is least reliable. Extended to the full 9 on explicit request. The honest scope flag below reflects the extended version; read it before treating this skill's output as more finished than it is.*
 
-Source material is already confirmed as Controidvania (Kinesthetic Explorer skeleton). Skip skeleton selection — go straight to JSON.
+## Workflow
 
-Use this skill when:
-- Source material has been mapped to Controidvania via `genre-skeleton-mapper`
-- You need contracts 1–4 in production-ready JSON (not prose summaries)
-- You are NOT yet ready for runtime tuning (contracts 5–9 need playtest data)
+### Step 1 — Detect input mode
 
-Do NOT use this skill to:
-- Select a skeleton — use `genre-skeleton-mapper` first if skeleton is uncertain
-- Generate all 9 contracts — use `narrative-structure` for the full pipeline
-- Tune physics, enemy stats, or room layouts — those are contracts 5–9
+Three modes the user might come in on:
 
----
-
-## The Design-Fingerprint Half
-
-Contracts 1–4 define what the game **IS**:
-
-| Contract | Role |
-|---|---|
-| C1 Input | Thematic/emotional brief — tone, archetype, session feel |
-| C2 Interpretation | Mechanical commitment — movement model, combat model, world shape |
-| C3 World Graph | The map — nodes, edges, locked paths, boss placement |
-| C4 Ability System | What the player learns and what each ability unlocks |
-
-Contracts 5–9 define how the game **RUNS** (physics values, enemy behaviors, room geometry, full validation). Those require greybox data. Stub fields in 5–9 invite hallucinated frame data — don't generate them.
-
----
-
-## Process
-
-### Step 1 — Answer the 5 Translation Questions
-
-Extract answers from source material before touching JSON:
-
-1. **Signature movement?** → the protagonist's primary traversal verb (wall-cling, web-swing, dash, grapple, double-jump, teleport…) — becomes the first ability in C4
-2. **Defining spaces?** → what environments characterize the source (rooftops, dungeons, subways, jungle canopy, underwater ruins…) — becomes C3 regional aesthetic
-3. **What does the protagonist learn across the arc?** → ordered list of acquired capabilities — becomes the ability progression sequence in C4
-4. **Who are the recurring antagonists?** → boss list — each gates a zone and rewards an ability
-5. **What is a "locked door" in this world?** → gating logic (gang territory, magical seal, hostile environment, security clearance, physical barrier) — drives C3 edge requirements
-
-Do not proceed to Step 2 until all five are answered in plain text.
-
----
-
-### Step 2 — Fill C1 (Input Contract)
-
-Schema: `references/contracts_1to4.md §C1`
-
-- `theme`: the emotional/moral engine of the source
-- `setting`: world description (one evocative phrase)
-- `protagonist_archetype`: who they are in the world
-- `tone`: pick from the enum — do not invent new values
-- `core_ability_style`: SIGNATURE MOVEMENT first, then combat verb (e.g. `"wall-clinging + nail attacks"`)
-- `reference_inspirations`: source IP + 1–2 comparable Controidvania titles for calibration
-- `difficulty` / `session_length`: infer from source pacing
-
----
-
-### Step 3 — Fill C2 (Interpretation Layer)
-
-Schema: `references/contracts_1to4.md §C2`
-
-**Locked fields — do not alter:**
-- `progression_style: "ability-gated"` — structural DNA of this skeleton
-- `world_structure`: must be `"dense"` or `"vertical"` — linear maps break this skeleton
-- `combat_model`: never `"none"` — even minimal combat is real-time twitch
-
-For `movement_model`: start at `"grounded"` — upgrade to `"hybrid"` only if the protagonist has a persistent aerial ability at game start (most Controidvanias are grounded base kit; aerial tools arrive as unlocks).
-
----
-
-### Step 4 — Build C3 (World Graph Contract)
-
-Schema: `references/contracts_1to4.md §C3`
-
-Construction checklist:
-- [ ] Minimum 10 nodes — the map is the game
-- [ ] Exactly 1 `type: "start"` node
-- [ ] 1 boss node per major region (boss gates the next region, rewards an ability)
-- [ ] All locked edge `requirement` values match ability IDs in C4
-- [ ] Every node reachable from start (run a mental traversal)
-- [ ] At least 2 edges with `shortcut: true` (backtrack accessibility shortcuts)
-- [ ] No dead-end nodes except `type: "boss"` (which connects forward after defeat)
-
-Name regions from Step 1 (Question 2). Map narrative arc onto region order — early regions = start of story, final boss region = climax.
-
----
-
-### Step 5 — Build C4 (Ability System Contract)
-
-Schema: `references/contracts_1to4.md §C4`
-
-Construction checklist:
-- [ ] Minimum 4 abilities
-- [ ] Abilities ordered by `narrative_order` (story order = unlock order)
-- [ ] Every ability has `gates_unlocked` with ≥1 entry — no cosmetic/decoration abilities
-- [ ] `unlock_node` references a valid node in C3
-- [ ] Each gated edge in C3 has a matching ability ID here
-- [ ] The signature movement from Step 1 (Question 1) is `narrative_order: 1` or a very early unlock
-
-Combat abilities are allowed but must ALSO unlock at least one spatial path — otherwise they belong in contract 5 (Player Controller), not here.
-
----
-
-### Step 6 — Validate the Design Fingerprint
-
-Run before output:
-
-- [ ] C2.progression_style === `"ability-gated"`
-- [ ] C2.world_structure === `"dense"` or `"vertical"`
-- [ ] Every edge requirement in C3 resolves to an ability_id in C4
-- [ ] Every ability in C4 has a non-empty `gates_unlocked`
-- [ ] C3 has exactly 1 start node
-- [ ] All C3 nodes are reachable from start via open or gated edges
-- [ ] Ability count ≥ locked edge count (no ability unlocks nothing)
-
-If any check fails: fix the contracts. Do not emit broken JSON.
-
----
-
-### Step 7 — Output
-
-Output a single JSON object. No prose. No markdown headers inside the JSON. No stub fields for contracts 5–9.
-
-```json
-{
-  "skeleton": "controidvania",
-  "source": "<source title>",
-  "design_fingerprint": {
-    "contract_1_input": { },
-    "contract_2_interpretation": { },
-    "contract_3_world_graph": { },
-    "contract_4_ability_system": { }
-  },
-  "contracts_5to9": "DEFERRED — requires greybox playtesting",
-  "validation": {
-    "fingerprint_valid": true,
-    "errors": [],
-    "warnings": []
-  }
-}
-```
-
-If `fingerprint_valid` is `false`, include error strings in `errors[]` and do not pass to the runtime pipeline.
-
----
-
-## Locked Fields Reference
-
-These are non-negotiable for this skeleton:
-
-| Field | Locked Value | Rationale |
+| Mode | What the user gave you | What to do |
 |---|---|---|
-| C2.progression_style | `"ability-gated"` | Structural DNA — changing this makes it a different skeleton |
-| C2.world_structure | `"dense"` or `"vertical"` | Map traversal is the product; linear = broken |
-| C2.combat_model | not `"none"` | Even minimal combat is twitch real-time |
-| C4: every ability gates ≥1 path | required | No decoration abilities before contracts 5–9 |
-| C3: boss node per region | required | Boss = regional gatekeeper |
-| Failure mode | checkpoint respawn | Not run-based (Roguelike is a different skeleton) |
+| Casual / prose | "Design a Controidvania about urban survival" | Generate all 9 contracts in sequence; default reasonably |
+| Structured input | A complete Input Contract JSON | Skip to Interpretation; generate the remaining 8 |
+| Partial state | Input + Interpretation, or Input + some downstream contracts | Fill what's missing; regenerate downstream contracts as needed |
 
----
+If the user's prose is too vague to extract an Input Contract from ("make me a game"), ask one short clarifying question before generating. Don't fabricate a theme out of nothing. See `references/01_input_contract.md` for the four fields that specifically cannot be silently defaulted.
 
-## Handoff After This Skill
+### Step 2 — Read the reference files in order
 
-Once contracts 1–4 are valid:
+Read them as you need them — don't pre-load all nine if you're only generating Input.
 
-- **C3 World Graph → designer** for room/tile layout decisions (feeds Contract 8)
-- **C4 Ability System → programmer** for controller implementation (feeds Contract 5)
-- **Full pipeline → `narrative-structure`** skill when greybox data is available to fill contracts 5–9
-- **Contract 9 (Validation)** runs only after all 9 contracts are filled
+**Front half — design fingerprint (Contracts 1–4):**
+- `references/01_input_contract.md` — schema for Input, extraction rules from prose
+- `references/02_interpretation.md` — mapping rules Input → Interpretation
+- `references/03_world_graph.md` — graph generation rules, structural validation
+- `references/04_ability_system.md` — ability design rules, graph-cross-validation
+
+**Back half — runtime tuning (Contracts 5–9):**
+- `references/05_player_controller.md` — physics defaults, ability_modifiers coupling, `tuning_status: default_untested` flag
+- `references/06_enemy_system.md` — health/damage scaling table, behavior FSM, `gated_by` pattern
+- `references/07_boss.md` — three-way coupling (World Graph node ↔ Ability System reward ↔ Boss entry), phase/stat table, one-shot floor
+- `references/08_room_tile.md` — gap geometry, layout-by-node-type, `mcp_target` hook for hardware binding
+- `references/09_validation_layer.md` — G1–G19 gates that check every coupling promise made across all 8 prior contracts
+
+### Step 3 — Generate each contract, in order
+
+Each contract depends on the ones above it — don't generate the World Graph before Interpretation locks in, don't generate Room/Tile before Player Controller's physics values exist to validate gaps against.
+
+For each contract:
+1. Apply the generation rules from the reference file
+2. Validate the contract against its own internal rules (per-contract validation, documented in each reference file)
+3. Note any choices made by inference (defaults, gap-filling) so the user can correct them
+
+**On the back half specifically:** Contracts 5–7 use fixed default values for physics and stats (per the `tuning_status: default_untested` convention established in Contract 5) rather than tuned "game feel" numbers. Surface this plainly when presenting output — these are documented starting points for a human tuning pass, not finished values.
+
+### Step 4 — Run Validation Layer (Contract 9)
+
+This replaces ad hoc manual checking. Contract 9's G1–G19 gates cover every cross-contract coupling introduced across Contracts 1–8:
+
+- Ability ↔ World Graph load-bearing and edge-existence checks (G1–G4)
+- Player Controller ↔ Interpretation ↔ Ability System model consistency (G5–G6)
+- Enemy System damage ceilings and node coverage (G7–G9)
+- Boss three-way coupling and the one-shot floor (G10–G13)
+- Room/Tile coverage and bidirectional enemy placement (G14–G17)
+- Physics reachability against Player Controller's actual stats (G18–G19) — uses a documented simplified projectile-motion model, not a real physics engine; treat this as a design-generation approximation
+
+Run every gate, don't stop at the first failure — collect everything so the user gets one complete error report, not a slow drip of individually-discovered problems. If `valid: false`, generation has failed; don't present partial output as if it were usable.
+
+### Step 5 — Handling the genre-skeleton-mapper bridge
+
+If the user is coming from a `genre-skeleton-mapper` output (a "[Source] mapped to Kinesthetic Explorer" breakdown), you have everything you need. Mine the breakdown:
+
+- Vibe paragraph → tone + reference_inspirations
+- Translation table → theme, setting, protagonist_archetype, core_ability_style
+- Movement model → feeds directly into the Interpretation contract's `movement_model`
+- Combat verb → feeds the Interpretation contract's `combat_model`
+- World structure → feeds `world_structure`
+- Boss-ability pairings → seed the Ability System contract, and now also the Boss contract's `reward_ability_id` coupling directly
+
+When this is the case, surface that you're using the mapper's output and note any choices that needed inference beyond what the mapper provided.
+
+## Honest scope flag
+
+This skill now produces the full 9-contract design + geometry package: narrative-to-mechanics translation, a validated world graph, an ability progression tree, physics defaults, enemy/boss population, and room-level geometry with gap distances checked against those physics defaults.
+
+**It still does not produce a playable game.** Two things remain genuinely unsolved by this skill:
+
+1. **Tuned game feel.** Contracts 5–7's numbers are documented defaults, explicitly flagged as needing a human playtesting pass. Treat them as a starting point, not a finished spec.
+2. **Actual rendering and runtime.** Room/Tile geometry is tile-count abstractions, not rendered assets — it hands off to the retro-pixel-art skill and MCP hardware profiles for that, and to an actual engine (Unity, etc.) for anything playable.
+
+If the user expects to take this output and run it in an engine tomorrow, surface that gap. The path from here to playable is real engineering, not a missing JSON block.
